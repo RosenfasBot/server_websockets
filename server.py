@@ -9,7 +9,7 @@ import websockets
 
 logging.basicConfig()
 
-STATE = {"message_number": 0, 'message_text':'SEJA BEM VINDO! Digite /name <seu_nome> para ser liberado no chat. Digite /to <username> <sua_mensagem> para enviar uma mensagem privada', 'from_user_name':'Server', 'to_user_name':'you', 'pv_message':'False'}
+STATE = {"message_number": 0, 'message_text':'SEJA BEM VINDO! Digite /name <seu_nome> para ser liberado no chat. Digite /to <username> <sua_mensagem> para enviar uma mensagem privada', 'from_user_name':'Server', 'to_user_name':'you', 'pv_message':'False', 'new_user':'False'}
 
 USERS = dict()
 count_users = 0
@@ -36,6 +36,11 @@ async def notify_state():
         try: await asyncio.wait([destino1.send(message), destino2.send(message)])
         except:pass
 
+    elif USERS and STATE['new_user'] == 'True':
+        new = json.dumps({"type": "message", "message_number": 0, 'message_text':'User {} juntou-se ao chat'.format(STATE['from_user_name']), 'from_user_name':'Server', 'to_user_name':'all', 'pv_message':'False', 'new_user':'False'})
+        message = [state_event(), new]
+        for i in range(2):
+            await asyncio.wait([user.send(message[i]) for user in USERS])
 
     elif USERS:  # asyncio.wait doesn't accept an empty list
         message = state_event()
@@ -79,11 +84,16 @@ async def counter(websocket, path):
                         STATE['from_user_name'] = 'server'
                         STATE['pv_message'] = 'False'
                         repeated_name = True
+                        STATE['new_user'] = 'False'
                         await notify_state()
 
                 if repeated_name == False:
                     STATE['message_text'] = 'Nome do usuário {} alterado para {}'.format(USERS[websocket], data['chat_message'])
                     STATE['to_user_name'] = 'all'
+                    if USERS[websocket] == None:
+                        STATE['new_user'] = 'True'
+                    else:
+                        STATE['new_user'] = 'False'
                     USERS.update({websocket:data['chat_message']})
                     STATE['from_user_name'] = USERS[websocket]
                     STATE['pv_message'] = 'False'
@@ -96,6 +106,7 @@ async def counter(websocket, path):
                 STATE['to_user_name'] = data['to_user_name']
                 STATE['pv_message'] = 'True'
                 STATE['from_user_name'] = USERS[websocket]
+                STATE['new_user'] = 'False'
                 await notify_state()
 
             elif data['normal'] == 'True' and USERS[websocket] != None :
@@ -105,6 +116,7 @@ async def counter(websocket, path):
                 STATE['from_user_name'] = USERS[websocket]
                 STATE['to_user_name'] = 'all'
                 STATE['pv_message'] = 'False'
+                STATE['new_user'] = 'False'
                 await notify_state()
 
             #elif data["action"] == "plus":
